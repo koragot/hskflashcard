@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0f1115">
+<title>汉语学习 · HSK Flashcards</title>
+<link rel="stylesheet" href="css/style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>汉</text></svg>">
+</head>
+<body>
+
+<!-- ── setup ───────────────────────────────────────────── -->
+<main id="setup" class="screen">
+  <header class="hero">
+    <h1><span class="hanzi-logo">汉语</span> Flashcards</h1>
+    <p class="sub">HSK 3.0 (newest) · เลือกคำแปลที่ถูกต้อง</p>
+  </header>
+
+  <section class="panel">
+    <h2 class="panel-title">ระดับ HSK</h2>
+    <div id="levels" class="levels"></div>
+    <p id="pool" class="pool">—</p>
+  </section>
+
+  <section class="panel">
+    <h2 class="panel-title">ตั้งค่า</h2>
+
+    <label class="row">
+      <span>จำนวนข้อ</span>
+      <select id="qcount">
+        <option value="10">10</option>
+        <option value="20" selected>20</option>
+        <option value="50">50</option>
+        <option value="0">ทั้งหมด</option>
+      </select>
+    </label>
+
+    <label class="row">
+      <span>โหมดคำถาม</span>
+      <select id="mode">
+        <option value="hanzi2en">汉字 → คำแปล + พินอิน</option>
+        <option value="en2hanzi">คำแปล → 汉字</option>
+        <option value="hanzi2py">汉字 → พินอิน</option>
+      </select>
+    </label>
+
+    <label class="row">
+      <span>เรียงลำดับ</span>
+      <select id="order">
+        <option value="random">สุ่ม</option>
+        <option value="freq">ตามความถี่ (ง่าย→ยาก)</option>
+      </select>
+    </label>
+
+    <label class="row toggle">
+      <span>อ่านออกเสียงอัตโนมัติ</span>
+      <input type="checkbox" id="autoTTS">
+    </label>
+
+    <label class="row toggle">
+      <span>ซ่อนพินอินในคำถาม</span>
+      <input type="checkbox" id="hidePY" checked>
+    </label>
+  </section>
+
+  <button id="start" class="btn primary big">เริ่มเลย</button>
+  <p id="resume" class="resume hidden"></p>
+</main>
+
+<!-- ── quiz ────────────────────────────────────────────── -->
+<main id="quiz" class="screen hidden">
+  <div class="topbar">
+    <button id="quit" class="icon-btn" title="ออก">✕</button>
+    <div class="progress"><div id="bar" class="bar"></div></div>
+    <div class="counter"><span id="idx">1</span>/<span id="total">20</span></div>
+  </div>
+
+  <div class="stats">
+    <span class="stat ok">✓ <b id="nOK">0</b></span>
+    <span class="stat bad">✕ <b id="nBad">0</b></span>
+    <span class="stat streak">🔥 <b id="nStreak">0</b></span>
+  </div>
+
+  <section class="card">
+    <div id="qLevel" class="badge">HSK 1</div>
+    <div id="qMain" class="q-main">爱</div>
+    <div id="qSub" class="q-sub"></div>
+    <button id="speak" class="icon-btn speak" title="ออกเสียง (S)">🔊</button>
+  </section>
+
+  <div id="choices" class="choices"></div>
+
+  <div id="feedback" class="feedback hidden">
+    <div id="fbText" class="fb-text"></div>
+    <div id="fbDetail" class="fb-detail"></div>
+    <button id="next" class="btn primary">ต่อไป →</button>
+  </div>
+</main>
+
+<!-- ── result ──────────────────────────────────────────── -->
+<main id="result" class="screen hidden">
+  <section class="panel score-panel">
+    <div id="scoreRing" class="ring"><span id="scorePct">0%</span></div>
+    <p id="scoreLine" class="score-line">—</p>
+  </section>
+
+  <section class="panel">
+    <h2 class="panel-title">คำที่ตอบผิด <span id="wrongCount" class="muted"></span></h2>
+    <div id="wrongList" class="wrong-list"></div>
+  </section>
+
+  <div class="actions">
+    <button id="again" class="btn primary">เล่นอีกครั้ง</button>
+    <button id="retryWrong" class="btn">ทบทวนคำที่ผิด</button>
+    <button id="home" class="btn ghost">กลับหน้าแรก</button>
+  </div>
+</main>
+
+<script src="js/app.js"></script>
+</body>
+</html>
