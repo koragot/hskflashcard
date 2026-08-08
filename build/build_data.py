@@ -5,13 +5,16 @@ Source schema (.min.json):
   s = simplified, r = radical, q = frequency rank, p = [pos]
   f = [{ t: traditional, i: {y: pinyin, n: numbered, b: bopomofo}, m: [meanings], c: [classifiers] }]
 
-Output: ../public/data/hsk-<level>.json  ->  [{s, t, py, en: [...], pos: [...], q}]
+Output: ../public/data/hsk-<level>.json
+  -> [{s, r, py, en: [...], pos: [...], q, ex: {zh, py, en}}]   ex is omitted when unmatched
 """
 
 import json
 import os
 import re
 import urllib.request
+
+import sentences
 
 BASE = "https://raw.githubusercontent.com/drkameleon/complete-hsk-vocabulary/main/wordlists/exclusive/newest"
 LEVELS = ["1", "2", "3", "4", "5", "6", "7"]
@@ -115,11 +118,10 @@ def build(level):
         if not meanings:
             continue
 
-        trad = chosen.get("t") or simp
         entries.append(
             {
                 "s": simp,
-                "t": trad if trad != simp else "",
+                "r": item.get("r") or "",
                 "py": chosen.get("i", {}).get("y", ""),
                 "en": meanings,
                 "pos": item.get("p") or [],
@@ -134,18 +136,33 @@ def build(level):
 
 def main():
     os.makedirs(OUT, exist_ok=True)
+    levels = {lv: build(lv) for lv in LEVELS}
+    all_words = {e["s"]: e["py"] for entries in levels.values() for e in entries}
+
+    print("matching example sentences (Tatoeba)...")
+    examples = sentences.build(all_words)
+
     index = []
-    for level in LEVELS:
-        entries = build(level)
+    for level, entries in levels.items():
+        for e in entries:
+            ex = examples.get(e["s"])
+            if ex:
+                e["ex"] = ex
         name = "7-9" if level == "7" else level
-        with open(os.path.join(OUT, f"hsk-{level}.json"), "w", encoding="utf-8") as f:
+        path = os.path.join(OUT, f"hsk-{level}.json")
+        with open(path, "w", encoding="utf-8") as f:
             json.dump(entries, f, ensure_ascii=False, separators=(",", ":"))
+        n_ex = sum(1 for e in entries if "ex" in e)
         index.append({"level": level, "label": name, "count": len(entries)})
-        print(f"HSK {name:>3}: {len(entries):>5} words")
+        size = os.path.getsize(path) / 1024
+        print(f"HSK {name:>3}: {len(entries):>5} words  "
+              f"{n_ex:>5} examples ({n_ex / len(entries) * 100:>3.0f}%)  {size:>6.0f} KB")
 
     with open(os.path.join(OUT, "index.json"), "w", encoding="utf-8") as f:
         json.dump(index, f, ensure_ascii=False, indent=2)
-    print(f"total   : {sum(i['count'] for i in index):>5} words -> {OUT}")
+    total = sum(i["count"] for i in index)
+    print(f"total   : {total:>5} words  {len(examples):>5} examples "
+          f"({len(examples) / total * 100:.0f}%) -> {OUT}")
 
 
 if __name__ == "__main__":
