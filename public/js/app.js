@@ -66,6 +66,8 @@ const shuffle = (a) => {
 
 const label = (lv) => (lv === '7' ? 'HSK 7-9' : 'HSK ' + lv);
 
+const esc = (s) => String(s).replace(/[<>&]/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c]));
+
 /** first meaning, used as the short answer text */
 const gloss = (e) => e.en[0];
 
@@ -214,8 +216,10 @@ function renderQuestion() {
     sub.textContent = $('hidePY').checked ? '' : a.py;
   } else {
     main.textContent = a.s;
-    sub.textContent = $('hidePY').checked ? (a.t ? a.t : '') : a.py + (a.t ? ` · ${a.t}` : '');
+    sub.textContent = $('hidePY').checked ? '' : a.py;
   }
+
+  bunny('idle');
 
   const box = $('choices');
   box.innerHTML = '';
@@ -231,7 +235,6 @@ function renderQuestion() {
 }
 
 function optionBody(e) {
-  const esc = (s) => s.replace(/[<>&]/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c]));
   if (state.mode === 'en2hanzi') return `<span class="hz">${e.s}</span>`;
   if (state.mode === 'hanzi2py') return `<span class="en">${esc(e.py)}</span>`;
   return `<span class="py">${esc(e.py)}</span><span class="en">${esc(gloss(e))}</span>`;
@@ -270,18 +273,75 @@ function answer(pick) {
   const fb = $('fbText');
   fb.textContent = correct ? '✓ ถูกต้อง' : '✕ ผิด';
   fb.className = 'fb-text ' + (correct ? 'ok' : 'bad');
-  $('fbDetail').innerHTML =
-    `<span class="hz">${a.s}</span>${a.t ? ` (${a.t})` : ''} · <b>${a.py}</b><br>${a.en.join('; ')}`;
+  renderReveal(a);
   $('feedback').classList.remove('hidden');
   $('next').focus();
 
+  bunny(correct ? 'happy' : 'sad', pep(correct));
   if (!$('autoTTS').checked) speak(a.s);
+}
+
+/** เฉลย: คำ + พินอิน + radical + ทุกความหมาย + ประโยคตัวอย่าง */
+function renderReveal(a) {
+  $('rvHanzi').textContent = a.s;
+  $('rvPy').textContent = a.py;
+  $('rvRad').innerHTML = a.r ? `部首 <b>${esc(a.r)}</b>` : '';
+  $('rvRad').classList.toggle('hidden', !a.r);
+  $('rvEn').textContent = a.en.join('; ');
+
+  const ex = a.ex;
+  $('rvEx').classList.toggle('hidden', !ex);
+  if (!ex) return;
+  // ไฮไลต์คำที่ถามในประโยค
+  $('exZh').innerHTML = esc(ex.zh).replaceAll(esc(a.s), `<mark>${esc(a.s)}</mark>`);
+  $('exPy').textContent = ex.py;
+  $('exEn').textContent = ex.en;
 }
 
 function next() {
   state.i++;
   if (state.i >= state.queue.length) finish();
   else renderQuestion();
+}
+
+/* ── กระต่ายให้กำลังใจ ─────────────────────────────────── */
+
+const CHEER = ['เก่งมาก! 🥕', 'ถูกต้อง!', 'ใช่เลย!', 'แม่นจริง ๆ', 'เยี่ยม!', 'ปรบมือให้'];
+const COMFORT = [
+  'ไม่เป็นไร จำไว้แล้วไปต่อ', 'เกือบแล้ว! ลองข้อหน้า', 'ผิดเป็นครูนะ',
+  'คำนี้ยาก ช่างมัน', 'ค่อย ๆ ไป เดี๋ยวก็จำได้',
+];
+const STREAK = { 3: 'ติดกัน 3 ข้อ!', 5: '5 ข้อติด ไฟแรง! 🔥', 10: '10 ข้อติด สุดยอด! 🏆', 20: '20 ข้อติด เทพแล้ว! 👑' };
+const IDLE = ['สู้ ๆ นะ', 'ค่อย ๆ คิด', 'ตั้งใจอ่านให้ดี', 'ข้อนี้ไม่ยาก'];
+
+const randOf = (a) => a[Math.floor(Math.random() * a.length)];
+
+/** ข้อความให้กำลังใจ - สตรีคมาก่อนคำชมธรรมดา */
+function pep(correct) {
+  if (!correct) return randOf(COMFORT);
+  return STREAK[state.streak] || randOf(CHEER);
+}
+
+let bunnyTimer = null;
+function bunny(mood, message) {
+  const el = $('bunny');
+  const bubble = $('bunnyMsg');
+  el.className = 'bunny ' + mood;
+
+  clearTimeout(bunnyTimer);
+  if (mood === 'idle') {
+    // ทักทายเป็นครั้งคราว ไม่ต้องพูดทุกข้อ
+    if (Math.random() < 0.3) {
+      bubble.textContent = randOf(IDLE);
+      bubble.classList.add('show');
+      bunnyTimer = setTimeout(() => bubble.classList.remove('show'), 1800);
+    } else {
+      bubble.classList.remove('show');
+    }
+    return;
+  }
+  bubble.textContent = message;
+  bubble.classList.add('show');
 }
 
 /* ── result ─────────────────────────────────────────────── */
@@ -306,14 +366,35 @@ function finish() {
       d.className = 'wrong-item';
       d.innerHTML =
         `<span class="hz">${e.s}</span>` +
-        `<span class="info"><span class="py">${e.py}</span><br><span class="en">${e.en.join('; ')}</span></span>`;
+        `<span class="info"><span class="py">${esc(e.py)}</span><br>` +
+        `<span class="en">${esc(e.en.join('; '))}</span></span>`;
       d.onclick = () => speak(e.s);
       list.appendChild(d);
     }
   }
   $('retryWrong').disabled = state.wrong.length < 1;
+  showResultBunny(pct);
   saveScore(pct, total);
   show('result');
+}
+
+const VERDICT = [
+  [100, 'happy', 'เต็ม! กระต่ายยอมยกมือไหว้ 🙇'],
+  [90, 'happy', 'แม่นมาก ไปเลเวลถัดไปได้แล้ว!'],
+  [70, 'happy', 'ดีมาก! อีกนิดก็เต็มแล้ว'],
+  [50, 'idle', 'พอใช้ ทบทวนคำที่ผิดอีกรอบนะ'],
+  [0, 'sad', 'ไม่เป็นไร เริ่มจากคำที่ผิดก่อน สู้ ๆ 🥕'],
+];
+
+function showResultBunny(pct) {
+  const [, mood, text] = VERDICT.find(([min]) => pct >= min);
+  const box = $('resultBunny');
+  box.innerHTML = '';
+  const clone = $('bunny').cloneNode(true);
+  clone.id = '';
+  clone.className = 'bunny ' + mood;
+  box.appendChild(clone);
+  $('bunnyVerdict').textContent = text;
 }
 
 /* ── tts ────────────────────────────────────────────────── */
@@ -344,7 +425,9 @@ function show(name) {
 document.addEventListener('keydown', (ev) => {
   if ($('quiz').classList.contains('hidden')) return;
   const k = ev.key.toLowerCase();
-  if (k === 's') { speak(state.queue[state.i].answer.s); return; }
+  const cur = state.queue[state.i].answer;
+  if (k === 's') { speak(cur.s); return; }
+  if (k === 'a' && state.locked && cur.ex) { speak(cur.ex.zh); return; }
   if (!state.locked && ['1', '2', '3'].includes(k)) {
     const n = +k - 1;
     if (n < state.queue[state.i].opts.length) answer(n);
@@ -366,6 +449,10 @@ async function init() {
   $('start').onclick = () => startQuiz(state.pool);
   $('next').onclick = next;
   $('speak').onclick = () => speak(state.queue[state.i].answer.s);
+  $('exSpeak').onclick = () => {
+    const ex = state.queue[state.i].answer.ex;
+    if (ex) speak(ex.zh);
+  };
   $('quit').onclick = () => show('setup');
   $('home').onclick = () => show('setup');
   $('again').onclick = () => startQuiz(state.pool);

@@ -133,6 +133,16 @@ body {
 
 .resume { margin-top: 12px; font-size: .84rem; color: var(--fg-dim); text-align: center; }
 
+.credits {
+  margin-top: 22px;
+  font-size: .72rem;
+  line-height: 1.7;
+  color: var(--fg-dim);
+  text-align: center;
+}
+.credits a { color: var(--fg-dim); text-decoration: underline; text-underline-offset: 2px; }
+.credits a:hover { color: var(--accent); }
+
 /* ── quiz ──────────────────────────────────── */
 .topbar { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
 .icon-btn {
@@ -223,11 +233,147 @@ body {
 .ch.dim { opacity: .45; }
 
 .feedback { margin-top: 18px; text-align: center; }
-.fb-text { font-size: 1.05rem; font-weight: 650; margin-bottom: 4px; }
+.fb-text { font-size: 1.05rem; font-weight: 650; margin-bottom: 10px; }
 .fb-text.ok { color: var(--ok); }
 .fb-text.bad { color: var(--bad); }
-.fb-detail { color: var(--fg-dim); font-size: .88rem; margin-bottom: 14px; }
-.fb-detail .hz { font-family: var(--han); color: var(--fg); }
+
+/* ── reveal: คำ + radical + ประโยคตัวอย่าง ── */
+.reveal {
+  background: var(--bg-soft);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 14px;
+  margin-bottom: 14px;
+  text-align: left;
+}
+.reveal-word {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 9px;
+}
+.reveal-word .hz { font-family: var(--han); font-size: 1.9rem; line-height: 1.2; }
+.reveal-word .py { color: var(--accent); font-weight: 650; font-size: 1rem; }
+.radical {
+  margin-left: auto;
+  flex: none;
+  font-size: .74rem;
+  color: var(--fg-dim);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 3px 8px;
+  white-space: nowrap;
+}
+.radical b { font-family: var(--han); font-size: 1rem; color: var(--fg); font-weight: 500; }
+.reveal-en { color: var(--fg-dim); font-size: .9rem; margin-top: 3px; }
+
+.example { margin-top: 12px; padding-top: 12px; border-top: 1px dashed var(--line); }
+.example.hidden { display: none; }
+.ex-label {
+  display: flex; align-items: center; gap: 4px;
+  font-size: .68rem; letter-spacing: .06em; text-transform: uppercase;
+  color: var(--fg-dim); font-weight: 700; margin-bottom: 7px;
+}
+.ex-label .icon-btn { font-size: .95rem; padding: 0 4px; }
+.ex-zh { font-family: var(--han); font-size: 1.28rem; line-height: 1.65; }
+.ex-zh mark { background: none; color: var(--accent); font-weight: 600; }
+.ex-py { font-size: .82rem; color: var(--accent); line-height: 1.5; margin-top: 3px; }
+.ex-en { font-size: .86rem; color: var(--fg-dim); margin-top: 4px; }
+
+/* ── กระต่ายให้กำลังใจ ── */
+.bunny {
+  --bunny: #d8d3cb;
+  --bunny-inner: #f2b3bb;
+  position: fixed;
+  left: max(10px, calc(50vw - 316px));
+  bottom: 14px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  pointer-events: none;
+  z-index: 5;
+}
+@media (prefers-color-scheme: dark) { .bunny { --bunny: #cfcac1; } }
+
+.bunny-art { width: 76px; overflow: visible; }
+.bunny-art .fur { fill: var(--bunny); }
+.bunny-art .ear-l, .bunny-art .ear-r { fill: var(--bunny); }
+.bunny-art .inner { fill: var(--bunny-inner); }
+.bunny-art .blush { fill: var(--accent); opacity: .34; }
+.bunny-art .eye { fill: #2b2b2b; }
+.bunny-art .nose { fill: #d96b7a; }
+.bunny-art .foot { fill: var(--bunny-inner); }
+.bunny-art .eye-line, .bunny-art .mouth {
+  fill: none; stroke: #2b2b2b; stroke-width: 2.1; stroke-linecap: round;
+}
+.bunny-art .ear-l { transform-origin: 45px 52px; }
+.bunny-art .ear-r { transform-origin: 75px 52px; }
+.bunny-art .eyes-happy, .bunny-art .mouth-sad { display: none; }
+
+/* ท่าทาง */
+.bunny.happy .bunny-art { animation: hop .5s ease-out 2; }
+.bunny.happy .eyes-open { display: none; }
+.bunny.happy .eyes-happy { display: block; }
+.bunny.happy .ear-l { animation: wiggle-l .4s ease-in-out 2; }
+.bunny.happy .ear-r { animation: wiggle-r .4s ease-in-out 2; }
+.bunny.sad .bunny-art { animation: shake .45s ease-in-out; }
+.bunny.sad .ear-l { transform: rotate(-58deg); }   /* หูตก */
+.bunny.sad .ear-r { transform: rotate(58deg); }
+.bunny.sad .mouth { display: none; }
+.bunny.sad .mouth-sad { display: block; }
+.bunny.idle .bunny-art { animation: breathe 3.4s ease-in-out infinite; }
+
+@keyframes hop {
+  0%, 100% { transform: translateY(0) }
+  35% { transform: translateY(-13px) scaleY(1.05) }
+  70% { transform: translateY(0) scaleY(.95) }
+}
+@keyframes wiggle-l { 0%,100% { transform: rotate(0) } 50% { transform: rotate(-16deg) } }
+@keyframes wiggle-r { 0%,100% { transform: rotate(0) } 50% { transform: rotate(16deg) } }
+@keyframes shake {
+  0%, 100% { transform: translateX(0) }
+  25% { transform: translateX(-4px) } 75% { transform: translateX(4px) }
+}
+@keyframes breathe { 0%,100% { transform: scale(1) } 50% { transform: scale(1.035) } }
+
+.bunny-msg {
+  position: relative;
+  margin-bottom: 7px;
+  background: var(--accent);
+  color: #fff;
+  font-size: .76rem;
+  font-weight: 600;
+  line-height: 1.35;
+  padding: 6px 10px;
+  border-radius: 11px;
+  text-align: center;
+  width: max-content;
+  max-width: 152px;
+  opacity: 0;
+  transform: translateY(5px) scale(.94);
+  transition: .22s cubic-bezier(.34, 1.56, .64, 1);
+}
+.bunny-msg.show { opacity: 1; transform: none; }
+.bunny-msg::after {
+  content: '';
+  position: absolute; bottom: -4px; left: 50%; margin-left: -5px;
+  border: 5px solid transparent;
+  border-top-color: var(--accent);
+  border-bottom: 0;
+}
+
+/* จอแคบ: ย่อกระต่ายให้ไม่ทับตัวเลือก */
+@media (max-width: 700px) {
+  .bunny { left: 8px; bottom: 10px; }
+  .bunny-art { width: 58px; }
+  .bunny-msg { font-size: .7rem; max-width: 132px; padding: 5px 8px; }
+}
+
+.result-bunny { margin: 6px auto 0; display: flex; justify-content: center; }
+.result-bunny .bunny-msg { display: none; }
+.result-bunny .bunny { position: static; left: auto; bottom: auto; }
+.result-bunny .bunny-art { width: 92px; }
+.bunny-verdict { font-size: .92rem; font-weight: 600; color: var(--accent); margin-top: 6px; }
 
 /* ── result ────────────────────────────────── */
 .score-panel { text-align: center; padding: 26px 16px; }

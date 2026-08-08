@@ -66,6 +66,12 @@
 
   <button id="start" class="btn primary big">เริ่มเลย</button>
   <p id="resume" class="resume hidden"></p>
+
+  <footer class="credits">
+    คำศัพท์จาก <a href="https://github.com/drkameleon/complete-hsk-vocabulary" target="_blank" rel="noopener">complete-hsk-vocabulary</a>
+    · ประโยคตัวอย่างจาก <a href="https://tatoeba.org" target="_blank" rel="noopener">Tatoeba</a>
+    (<a href="https://creativecommons.org/licenses/by/2.0/fr/" target="_blank" rel="noopener">CC-BY 2.0 FR</a>)
+  </footer>
 </main>
 
 <!-- ── quiz ────────────────────────────────────────────── -->
@@ -93,8 +99,56 @@
 
   <div id="feedback" class="feedback hidden">
     <div id="fbText" class="fb-text"></div>
-    <div id="fbDetail" class="fb-detail"></div>
+
+    <div class="reveal">
+      <div class="reveal-word">
+        <span id="rvHanzi" class="hz"></span>
+        <span id="rvPy" class="py"></span>
+        <span id="rvRad" class="radical" title="部首 — radical"></span>
+      </div>
+      <div id="rvEn" class="reveal-en"></div>
+
+      <div id="rvEx" class="example">
+        <div class="ex-label">ตัวอย่างประโยค
+          <button id="exSpeak" class="icon-btn" title="ออกเสียงประโยค (A)">🔊</button>
+        </div>
+        <div id="exZh" class="ex-zh"></div>
+        <div id="exPy" class="ex-py"></div>
+        <div id="exEn" class="ex-en"></div>
+      </div>
+    </div>
+
     <button id="next" class="btn primary">ต่อไป →</button>
+  </div>
+
+  <!-- กระต่ายให้กำลังใจ -->
+  <div id="bunny" class="bunny">
+    <div id="bunnyMsg" class="bunny-msg"></div>
+    <svg class="bunny-art" viewBox="0 0 120 127" aria-hidden="true">
+      <g class="ears">
+        <ellipse class="ear-l" cx="45" cy="30" rx="8.5" ry="25"/>
+        <ellipse class="ear-l inner" cx="45" cy="32" rx="4" ry="18"/>
+        <ellipse class="ear-r" cx="75" cy="30" rx="8.5" ry="25"/>
+        <ellipse class="ear-r inner" cx="75" cy="32" rx="4" ry="18"/>
+      </g>
+      <ellipse class="foot" cx="45" cy="118" rx="9.5" ry="5.5"/>
+      <ellipse class="foot" cx="75" cy="118" rx="9.5" ry="5.5"/>
+      <ellipse class="fur" cx="60" cy="95" rx="31" ry="25"/>
+      <circle class="fur" cx="60" cy="66" r="26"/>
+      <ellipse class="blush" cx="41" cy="73" rx="5.5" ry="3.4"/>
+      <ellipse class="blush" cx="79" cy="73" rx="5.5" ry="3.4"/>
+      <g class="eyes-open">
+        <circle class="eye" cx="50" cy="63" r="3.4"/>
+        <circle class="eye" cx="70" cy="63" r="3.4"/>
+      </g>
+      <g class="eyes-happy">
+        <path class="eye-line" d="M45.5 64.5q4.5-6 9 0"/>
+        <path class="eye-line" d="M65.5 64.5q4.5-6 9 0"/>
+      </g>
+      <path class="nose" d="M60 70l-4.2 4h8.4z"/>
+      <path class="mouth" d="M60 78q-4 4.5-7.5 1M60 78q4 4.5 7.5 1"/>
+      <path class="mouth mouth-sad" d="M52.5 81q7.5-5 15 0"/>
+    </svg>
   </div>
 </main>
 
@@ -103,6 +157,8 @@
   <section class="panel score-panel">
     <div id="scoreRing" class="ring"><span id="scorePct">0%</span></div>
     <p id="scoreLine" class="score-line">—</p>
+    <div id="resultBunny" class="result-bunny"></div>
+    <p id="bunnyVerdict" class="bunny-verdict"></p>
   </section>
 
   <section class="panel">
