@@ -19,6 +19,9 @@ const state = {
   wrong: [],            // entries answered incorrectly
   locked: false,
   mode: 'hanzi2en',
+  qLimit: 0,            // seconds per question, 0 = off
+  tLimit: 0,            // seconds for the whole run, 0 = off
+  timeUp: false,        // run ended by the total timer
 };
 
 /* ── settings persistence ───────────────────────────────── */
@@ -30,6 +33,8 @@ function loadSettings() {
   if (s.qcount) $('qcount').value = s.qcount;
   if (s.mode) $('mode').value = s.mode;
   if (s.order) $('order').value = s.order;
+  if (s.qtime) $('qtime').value = s.qtime;
+  if (s.ttime) $('ttime').value = s.ttime;
   $('autoTTS').checked = !!s.autoTTS;
   $('hidePY').checked = s.hidePY !== false;
   return s;
@@ -43,6 +48,8 @@ function saveSettings() {
     qcount: $('qcount').value,
     mode: $('mode').value,
     order: $('order').value,
+    qtime: $('qtime').value,
+    ttime: $('ttime').value,
     autoTTS: $('autoTTS').checked,
     hidePY: $('hidePY').checked,
   }));
@@ -71,14 +78,35 @@ const esc = (s) => String(s).replace(/[<>&]/g, (c) => ({ '<': '&lt;', '>': '&gt;
 /** first meaning, used as the short answer text */
 const gloss = (e) => e.en[0];
 
+/** modes whose options are hanzi rather than pinyin/meaning */
+const HANZI_OPTS = new Set(['en2hanzi', 'py2hanzi', 'pyen2hanzi']);
+/** modes whose question is pinyin */
+const PY_QUESTION = new Set(['py2hanzi', 'pyen2hanzi']);
+
 /** what the option actually shows - two options must never render the same text */
 function displayKey(e) {
-  if (state.mode === 'en2hanzi') return e.s;
+  if (HANZI_OPTS.has(state.mode)) return e.s;
   if (state.mode === 'hanzi2py') return e.py;
   return e.py + '|' + gloss(e);
 }
 
-const syllables = (e) => e.py.trim().split(/\s+/).length;
+/** character count - equals the pinyin syllable count (data pinyin isn't always space-separated) */
+const hanziLen = (e) => [...e.s].length;
+
+/** pinyin ignoring spacing, so homophones (是/事, 他/她/它) are caught */
+const pyKey = (e) => e.py.toLowerCase().replace(/[\s'’\d]/g, '');
+
+const mmss = (sec) => Math.floor(sec / 60) + ':' + String(sec % 60).padStart(2, '0');
+
+/** lazy shuffle - yields a random order without shuffling the whole list up front */
+function* randomOrder(list) {
+  const a = list.slice();
+  for (let i = 0; i < a.length; i++) {
+    const j = i + Math.floor(Math.random() * (a.length - i));
+    [a[i], a[j]] = [a[j], a[i]];
+    yield a[i];
+  }
+}
 
 /** words share a gloss if any content word of 4+ chars overlaps — bad distractor */
 function tooSimilar(a, b) {
@@ -113,9 +141,21 @@ async function rebuildPool() {
     state.pool = sets.flat();
     $('pool').innerHTML = `คลังคำศัพท์: <b>${state.pool.length.toLocaleString()}</b> คำ · ${lvls.map(label).join(', ')}`;
     btn.disabled = state.pool.length < CHOICES;
+    updateTimeHint();
   } catch (err) {
     $('pool').textContent = '⚠️ ' + err.message;
   }
+}
+
+/** "20 ข้อ ใน 200 วิ" under the total-time setting */
+function updateTimeHint() {
+  const per = parseInt($('ttime').value, 10);
+  const hint = $('ttimeHint');
+  if (!per) { hint.textContent = ''; return; }
+  const n = parseInt($('qcount').value, 10);
+  const count = n > 0 ? Math.min(n, state.pool.length) : state.pool.length;
+  const sec = per * count;
+  hint.textContent = `${count.toLocaleString()} ข้อ ใน ${sec.toLocaleString()} วิ (${mmss(sec)}) · หยุดนับตอนดูเฉลย`;
 }
 
 /* ── setup screen ───────────────────────────────────────── */
@@ -142,28 +182,46 @@ function renderLevels() {
 
 /* ── quiz construction ──────────────────────────────────── */
 
-function makeQuestion(answer, pool) {
-  const opts = [answer];
-  // prefer distractors from the same level - closer in difficulty than a random pick
-  const near = pool.filter((e) => e !== answer && e.lv === answer.lv);
-  const bag = shuffle(near.length >= 40 ? near : pool.filter((e) => e !== answer));
-
-  const distinct = (c) =>
-    !opts.some((o) => o.s === c.s || displayKey(o) === displayKey(c) || gloss(o) === gloss(c));
-
-  // pass 1: distinct, not semantically overlapping, and same syllable count in pinyin mode
-  // (a 1-syllable answer among 2-syllable options would give itself away)
-  const sameLen = state.mode === 'hanzi2py';
-  for (const cand of bag) {
-    if (opts.length === CHOICES) break;
-    if (!distinct(cand) || tooSimilar(answer, cand)) continue;
-    if (sameLen && syllables(cand) !== syllables(answer)) continue;
-    opts.push(cand);
+/** pool grouped by word length (and level + length) so distractors can be drawn length-matched */
+function indexPool(pool) {
+  const byLen = new Map();
+  const byLvLen = new Map();
+  const add = (m, k, e) => (m.get(k) || m.set(k, []).get(k)).push(e);
+  for (const e of pool) {
+    add(byLen, hanziLen(e), e);
+    add(byLvLen, e.lv + '|' + hanziLen(e), e);
   }
-  // pass 2: drop the soft constraints if the pool was too small to fill 3 options
-  for (const cand of bag) {
-    if (opts.length === CHOICES) break;
-    if (distinct(cand)) opts.push(cand);
+  return { pool, byLen, byLvLen };
+}
+
+function makeQuestion(answer, idx) {
+  const opts = [answer];
+  const len = hanziLen(answer);
+  const sameLv = idx.byLvLen.get(answer.lv + '|' + len) || [];
+  const sameLen = idx.byLen.get(len) || [];
+
+  // never two options with the same text, meaning or pinyin - a homophone would be a second right answer
+  const distinct = (c) => !opts.some((o) =>
+    o.s === c.s || displayKey(o) === displayKey(c) || gloss(o) === gloss(c) || pyKey(o) === pyKey(c));
+  const fill = (cands, ok = () => true) => {
+    for (const c of cands) {
+      if (opts.length === CHOICES) return;
+      if (distinct(c) && ok(c)) opts.push(c);
+    }
+  };
+  const unrelated = (c) => !tooSimilar(answer, c);
+
+  // every option has as many characters (= pinyin syllables) as the answer, in every mode -
+  // 直到 among 3-character options would give itself away. Same level first: closer in difficulty.
+  fill(randomOrder(sameLv), unrelated);
+  fill(randomOrder(sameLen), unrelated);
+  // then relax the meaning-overlap check, but never the length
+  fill(randomOrder(sameLv));
+  fill(randomOrder(sameLen));
+  // pool has too few words of this length (e.g. a lone 4-char idiom): nearest lengths
+  if (opts.length < CHOICES) {
+    const gap = (e) => Math.abs(hanziLen(e) - len);
+    fill(shuffle(idx.pool.slice()).sort((a, b) => gap(a) - gap(b)));
   }
   return { answer, opts: shuffle(opts) };
 }
@@ -178,17 +236,79 @@ function buildQueue(source) {
   if (n > 0) list = list.slice(0, n);
   if (order === 'freq') { /* keep frequency order */ } else shuffle(list);
 
-  return list.map((e) => makeQuestion(e, state.pool));
+  const idx = indexPool(state.pool);
+  return list.map((e) => makeQuestion(e, idx));
 }
 
 function startQuiz(source) {
   state.mode = $('mode').value;
   state.queue = buildQueue(source);
   if (!state.queue.length) return;
-  Object.assign(state, { i: 0, ok: 0, bad: 0, streak: 0, best: 0, wrong: [], locked: false });
+  Object.assign(state, { i: 0, ok: 0, bad: 0, streak: 0, best: 0, wrong: [], locked: false, timeUp: false });
+  state.qLimit = parseInt($('qtime').value, 10) || 0;
+  state.tLimit = (parseInt($('ttime').value, 10) || 0) * state.queue.length;
+  timer.total = state.tLimit * 1000;
+  timer.used = 0;
+  $('qTimer').classList.toggle('hidden', !state.qLimit);
+  $('tTotal').classList.toggle('hidden', !state.tLimit);
   $('total').textContent = state.queue.length;
   show('quiz');
   renderQuestion();
+  startTicking();
+}
+
+/* ── timers ─────────────────────────────────────────────── */
+
+// ms left on this question / in the run, and thinking time spent (paused while the answer is shown)
+const timer = { id: null, last: 0, q: 0, total: 0, used: 0 };
+
+function startTicking() {
+  stopTicking();
+  timer.last = performance.now();
+  timer.id = setInterval(tick, 100);
+}
+
+function stopTicking() {
+  clearInterval(timer.id);
+  timer.id = null;
+}
+
+function tick() {
+  // measure real elapsed time - a throttled background tab ticks late, not slower
+  const now = performance.now();
+  const dt = now - timer.last;
+  timer.last = now;
+  if (state.locked) return;
+
+  timer.used += dt;
+  timer.q -= dt;
+  timer.total -= dt;
+  renderTimers();
+
+  if (state.tLimit && timer.total <= 0) timeUpAll();
+  else if (state.qLimit && timer.q <= 0) answer(-1);
+}
+
+function renderTimers() {
+  if (state.qLimit) {
+    const left = Math.max(0, timer.q);
+    const full = state.qLimit * 1000;
+    $('qTimerNum').textContent = Math.ceil(left / 1000);
+    $('qTimerBar').style.width = (left / full) * 100 + '%';
+    $('qTimer').classList.toggle('low', left <= Math.min(3000, full * 0.3));
+  }
+  if (state.tLimit) {
+    const left = Math.max(0, timer.total);
+    $('nTime').textContent = mmss(Math.ceil(left / 1000));
+    $('tTotal').classList.toggle('low', left <= 10000);
+  }
+}
+
+/** total time ran out: the current and remaining questions count as unanswered */
+function timeUpAll() {
+  state.locked = true;
+  state.timeUp = true;
+  finish();
 }
 
 /* ── quiz rendering ─────────────────────────────────────── */
@@ -205,15 +325,21 @@ function renderQuestion() {
   $('qLevel').textContent = label(a.lv);
   $('feedback').classList.add('hidden');
   state.locked = false;
+  timer.q = state.qLimit * 1000;
+  renderTimers();
 
   const main = $('qMain');
   const sub = $('qSub');
-  main.classList.remove('small');
+  main.classList.remove('small', 'pinyin');
 
   if (state.mode === 'en2hanzi') {
     main.classList.add('small');
     main.textContent = a.en.slice(0, 2).join('; ');
     sub.textContent = $('hidePY').checked ? '' : a.py;
+  } else if (PY_QUESTION.has(state.mode)) {
+    main.classList.add('pinyin');
+    main.textContent = a.py;
+    sub.textContent = state.mode === 'pyen2hanzi' ? a.en.slice(0, 2).join('; ') : '';
   } else {
     main.textContent = a.s;
     sub.textContent = $('hidePY').checked ? '' : a.py;
@@ -235,11 +361,12 @@ function renderQuestion() {
 }
 
 function optionBody(e) {
-  if (state.mode === 'en2hanzi') return `<span class="hz">${e.s}</span>`;
+  if (HANZI_OPTS.has(state.mode)) return `<span class="hz">${e.s}</span>`;
   if (state.mode === 'hanzi2py') return `<span class="en">${esc(e.py)}</span>`;
   return `<span class="py">${esc(e.py)}</span><span class="en">${esc(gloss(e))}</span>`;
 }
 
+/** pick = -1 when the per-question timer ran out - counts as wrong */
 function answer(pick) {
   if (state.locked) return;
   state.locked = true;
@@ -247,6 +374,7 @@ function answer(pick) {
   const q = state.queue[state.i];
   const a = q.answer;
   const correct = q.opts[pick] === a;
+  const timedOut = pick < 0;
   const btns = [...$('choices').children];
 
   btns.forEach((b, n) => {
@@ -271,13 +399,13 @@ function answer(pick) {
   $('nStreak').textContent = state.streak;
 
   const fb = $('fbText');
-  fb.textContent = correct ? '✓ ถูกต้อง' : '✕ ผิด';
+  fb.textContent = correct ? '✓ ถูกต้อง' : timedOut ? '⏰ หมดเวลา — นับเป็นผิด' : '✕ ผิด';
   fb.className = 'fb-text ' + (correct ? 'ok' : 'bad');
   renderReveal(a);
   $('feedback').classList.remove('hidden');
   $('next').focus();
 
-  bunny(correct ? 'happy' : 'sad', pep(correct));
+  bunny(correct ? 'happy' : 'sad', timedOut ? randOf(TOO_SLOW) : pep(correct));
   if (!$('autoTTS').checked) speak(a.s);
 }
 
@@ -313,6 +441,7 @@ const COMFORT = [
 ];
 const STREAK = { 3: 'ติดกัน 3 ข้อ!', 5: '5 ข้อติด ไฟแรง! 🔥', 10: '10 ข้อติด สุดยอด! 🏆', 20: '20 ข้อติด เทพแล้ว! 👑' };
 const IDLE = ['สู้ ๆ นะ', 'ค่อย ๆ คิด', 'ตั้งใจอ่านให้ดี', 'ข้อนี้ไม่ยาก'];
+const TOO_SLOW = ['ช้าไปนิด ข้อหน้าเร็วขึ้นนะ', 'เวลาหมดซะแล้ว ⏰', 'ไม่ต้องรีบ แต่ก็อย่าช้านะ'];
 
 const randOf = (a) => a[Math.floor(Math.random() * a.length)];
 
@@ -353,7 +482,11 @@ function finish() {
   $('scorePct').textContent = pct + '%';
   $('scoreRing').style.setProperty('--pct', pct + '%');
   $('scoreLine').textContent =
-    `ถูก ${state.ok} จาก ${total} ข้อ · สตรีคสูงสุด ${state.best}`;
+    `ถูก ${state.ok} จาก ${total} ข้อ · สตรีคสูงสุด ${state.best} · เวลาคิด ${mmss(Math.round(timer.used / 1000))}`;
+
+  const unanswered = total - state.ok - state.bad;
+  $('timeLine').textContent = `⏰ หมดเวลารวม — ไม่ได้ตอบ ${unanswered} ข้อ (นับเป็นผิด)`;
+  $('timeLine').classList.toggle('hidden', !state.timeUp);
 
   $('wrongCount').textContent = state.wrong.length ? `(${state.wrong.length})` : '';
   const list = $('wrongList');
@@ -418,6 +551,7 @@ function speak(text) {
 /* ── navigation ─────────────────────────────────────────── */
 
 function show(name) {
+  if (name !== 'quiz') stopTicking();
   for (const s of ['setup', 'quiz', 'result']) $(s).classList.toggle('hidden', s !== name);
   window.scrollTo(0, 0);
 }
@@ -443,8 +577,9 @@ document.addEventListener('keydown', (ev) => {
 
 async function init() {
   loadSettings();
-  ['qcount', 'mode', 'order', 'autoTTS', 'hidePY'].forEach((id) =>
+  ['qcount', 'mode', 'order', 'qtime', 'ttime', 'autoTTS', 'hidePY'].forEach((id) =>
     $(id).addEventListener('change', saveSettings));
+  ['qcount', 'ttime'].forEach((id) => $(id).addEventListener('change', updateTimeHint));
 
   $('start').onclick = () => startQuiz(state.pool);
   $('next').onclick = next;
