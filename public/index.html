@@ -42,6 +42,29 @@
         <option value="hanzi2en">汉字 → คำแปล + พินอิน</option>
         <option value="en2hanzi">คำแปล → 汉字</option>
         <option value="hanzi2py">汉字 → พินอิน</option>
+        <option value="py2hanzi">พินอิน → 汉字</option>
+        <option value="pyen2hanzi">พินอิน + คำแปล → 汉字</option>
+      </select>
+    </label>
+
+    <label class="row">
+      <span>เวลาต่อข้อ</span>
+      <select id="qtime">
+        <option value="0">ไม่จับเวลา</option>
+        <option value="5">5 วินาที</option>
+        <option value="10">10 วินาที</option>
+        <option value="30">30 วินาที</option>
+      </select>
+    </label>
+
+    <label class="row">
+      <span>เวลารวม<small id="ttimeHint" class="hint"></small></span>
+      <select id="ttime">
+        <option value="0">ไม่จับเวลา</option>
+        <option value="5">เฉลี่ย 5 วิ/ข้อ</option>
+        <option value="10">เฉลี่ย 10 วิ/ข้อ</option>
+        <option value="15">เฉลี่ย 15 วิ/ข้อ</option>
+        <option value="20">เฉลี่ย 20 วิ/ข้อ</option>
       </select>
     </label>
 
@@ -86,9 +109,14 @@
     <span class="stat ok">✓ <b id="nOK">0</b></span>
     <span class="stat bad">✕ <b id="nBad">0</b></span>
     <span class="stat streak">🔥 <b id="nStreak">0</b></span>
+    <span id="tTotal" class="stat timer hidden">⏱ <b id="nTime">0:00</b></span>
   </div>
 
   <section class="card">
+    <div id="qTimer" class="q-timer hidden">
+      <span id="qTimerNum" class="q-timer-num"></span>
+      <div class="q-timer-track"><div id="qTimerBar" class="q-timer-bar"></div></div>
+    </div>
     <div id="qLevel" class="badge">HSK 1</div>
     <div id="qMain" class="q-main">爱</div>
     <div id="qSub" class="q-sub"></div>
@@ -157,6 +185,7 @@
   <section class="panel score-panel">
     <div id="scoreRing" class="ring"><span id="scorePct">0%</span></div>
     <p id="scoreLine" class="score-line">—</p>
+    <p id="timeLine" class="time-line hidden"></p>
     <div id="resultBunny" class="result-bunny"></div>
     <p id="bunnyVerdict" class="bunny-verdict"></p>
   </section>
