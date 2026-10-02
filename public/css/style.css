@@ -111,6 +111,7 @@ body {
   cursor: pointer;
   max-width: 62%;
 }
+.row .hint { display: block; font-size: .74rem; color: var(--fg-dim); line-height: 1.4; }
 .toggle input { width: 20px; height: 20px; accent-color: var(--accent); cursor: pointer; }
 
 .btn {
@@ -166,9 +167,12 @@ body {
 .stat.ok b { color: var(--ok); }
 .stat.bad b { color: var(--bad); }
 .stat.streak b { color: var(--gold); }
+.stat.timer b { color: var(--fg); }
+.stat.timer.low b { color: var(--bad); }
 
 .card {
   position: relative;
+  overflow: hidden;
   background: var(--bg-soft);
   border: 1px solid var(--line);
   border-radius: 18px;
@@ -186,6 +190,19 @@ body {
 
 .q-main { font-family: var(--han); font-size: 4.2rem; line-height: 1.25; font-weight: 500; }
 .q-main.small { font-size: 1.55rem; font-family: var(--sans); font-weight: 600; padding: 10px 0; }
+.q-main.pinyin { font-size: 2.5rem; font-family: var(--sans); font-weight: 600; color: var(--accent); padding: 8px 0; }
+
+/* นับถอยหลังต่อข้อ: ตัวเลขมุมขวาบน + แถบล่างการ์ด */
+.q-timer { position: absolute; inset: 0; pointer-events: none; }
+.q-timer-num {
+  position: absolute; top: 12px; right: 46px;
+  font-size: .8rem; font-weight: 700; color: var(--gold);
+  font-variant-numeric: tabular-nums;
+}
+.q-timer-track { position: absolute; left: 0; right: 0; bottom: 0; height: 4px; background: var(--line); }
+.q-timer-bar { height: 100%; width: 100%; background: var(--gold); transition: width .1s linear; }
+.q-timer.low .q-timer-num { color: var(--bad); }
+.q-timer.low .q-timer-bar { background: var(--bad); }
 .q-sub { color: var(--fg-dim); font-size: 1rem; margin-top: 6px; min-height: 1.4em; }
 
 .choices { display: grid; gap: 9px; }
@@ -393,6 +410,7 @@ body {
   font-variant-numeric: tabular-nums;
 }
 .score-line { color: var(--fg-dim); font-size: .92rem; }
+.time-line { color: var(--bad); font-size: .88rem; font-weight: 600; margin-top: 4px; }
 
 .wrong-list { display: grid; gap: 7px; max-height: 46vh; overflow-y: auto; }
 .wrong-item {
